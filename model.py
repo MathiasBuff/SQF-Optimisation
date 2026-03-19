@@ -223,9 +223,12 @@ def score_eta(
     Returns dims: all method dims (e.g. T, tG)
     """
     w_bar = pred[w_name].mean(analyte_dim)
-    denom = (pred.coords[tG_dim] - column_dead_time)
-    # broadcast denom to method dims automatically
-    return ((denom - w_bar) / denom) ** width_penalty_coeff
+
+    method_dims = [d for d in pred[w_name].dims if d != analyte_dim]
+    denom = pred.coords[tG_dim] - column_dead_time
+
+    eta = ((denom - w_bar) / denom) ** width_penalty_coeff
+    return eta.transpose(*method_dims)
 
 
 def score_Sbar(
@@ -257,52 +260,6 @@ def score_We(
     tR_min = pred[tR_name].min(analyte_dim)
     denom = (pred.coords[tG_dim] - column_dead_time)
     return (tR_max - tR_min) / denom
-
-
-def score_critical_resolution(
-    pred: xr.Dataset,
-    *,
-    analyte_dim: str = "analyte",
-    tR_name: str = "tR",
-    w_name: str = "w",
-) -> xr.DataArray:
-    """
-    Critical resolution: min over adjacent pairs after sorting by tR.
-    Notebook formula:
-        Rs_i = (tR_{i+1}-tR_i) / (w_{i+1}+w_i)
-    """
-    tR = pred[tR_name]
-    w  = pred[w_name]
-
-    # stack method dims => (analyte, point)
-    tR_s, method_dims = _stack_points(tR, analyte_dim=analyte_dim)
-    w_s,  _           = _stack_points(w,  analyte_dim=analyte_dim)
-
-    # NumPy sort per point along analyte axis (axis=0)
-    tR_vals = np.asarray(tR_s.data)  # (N, P)
-    w_vals  = np.asarray(w_s.data)   # (N, P)
-
-    order = np.argsort(tR_vals, axis=0)  # (N, P) integer indices
-    tR_sorted = np.take_along_axis(tR_vals, order, axis=0)
-    w_sorted  = np.take_along_axis(w_vals,  order, axis=0)
-
-    # adjacent resolution (N-1, P)
-    dt = tR_sorted[1:, :] - tR_sorted[:-1, :]
-    ws = w_sorted[1:, :]  + w_sorted[:-1, :]
-    Rs = dt / ws
-
-    crit_vals = np.min(Rs, axis=0)  # (P,)
-
-    crit = xr.DataArray(
-        crit_vals,
-        dims=("point",),
-        coords={"point": tR_s.coords["point"]},
-        name="Rs_crit",
-    )
-
-    # unstack back to original method dims
-    crit = crit.unstack("point") if method_dims != ["point"] else crit.squeeze("point")
-    return crit
 
 
 def score_DU(
@@ -419,7 +376,7 @@ def score_CPO(
     Parameters
     ----------
     pred : xr.Dataset
-        Must contain tR, w, S with dims (analyte, ...method dims...)
+        Must contain tR, w, A with dims (analyte, ...method dims...)
         e.g. (analyte, T, tG).
     Rs_clip_divisor : float
         The "divide by 2" factor from your current notebook (cell 17). Keep at 2.0 unless changed.
@@ -488,6 +445,84 @@ def score_CPO(
     return cpo
 
 
+def score_critical_resolution(
+    pred: xr.Dataset,
+    *,
+    analyte_dim: str = "analyte",
+    tR_name: str = "tR",
+    w_name: str = "w",
+) -> xr.DataArray:
+    """
+    Critical resolution: min over adjacent pairs after sorting by tR.
+    Notebook formula:
+        Rs_i = (tR_{i+1}-tR_i) / (w_{i+1}+w_i)
+    """
+    tR = pred[tR_name]
+    w  = pred[w_name]
+
+    # stack method dims => (analyte, point)
+    tR_s, method_dims = _stack_points(tR, analyte_dim=analyte_dim)
+    w_s,  _           = _stack_points(w,  analyte_dim=analyte_dim)
+
+    # NumPy sort per point along analyte axis (axis=0)
+    tR_vals = np.asarray(tR_s.data)  # (N, P)
+    w_vals  = np.asarray(w_s.data)   # (N, P)
+
+    order = np.argsort(tR_vals, axis=0)  # (N, P) integer indices
+    tR_sorted = np.take_along_axis(tR_vals, order, axis=0)
+    w_sorted  = np.take_along_axis(w_vals,  order, axis=0)
+
+    # adjacent resolution (N-1, P)
+    dt = tR_sorted[1:, :] - tR_sorted[:-1, :]
+    ws = w_sorted[1:, :]  + w_sorted[:-1, :]
+    Rs = dt / ws
+
+    crit_vals = np.min(Rs, axis=0)  # (P,)
+
+    crit = xr.DataArray(
+        crit_vals,
+        dims=("point",),
+        coords={"point": tR_s.coords["point"]},
+        name="Rs_crit",
+    )
+
+    # unstack back to original method dims
+    crit = crit.unstack("point") if method_dims != ["point"] else crit.squeeze("point")
+    return crit
+
+
+def score_SQF(
+    pred: xr.Dataset,
+    *,
+    column_dead_time: float,
+    width_penalty_coeff: float = 10.0,
+) -> xr.DataArray:
+    """
+    Separation Quality Factor (SQF), defined as the geometric mean of:
+        {eta, Sbar, We, DUr, CPO}
+    """
+    eta  = score_eta(
+        pred,
+        column_dead_time=column_dead_time,
+        width_penalty_coeff=width_penalty_coeff,
+    )
+    Sbar = score_Sbar(pred)
+    We   = score_We(pred, column_dead_time=column_dead_time)
+    DUr  = score_DU(pred)
+    CPO  = score_CPO(pred)
+
+    factors = xr.concat([eta, Sbar, We, DUr, CPO], dim="metric")
+
+    if bool((factors < 0).any()):
+        raise ValueError("SQF is undefined for negative score components.")
+
+    # geometric mean; zeros are allowed and give SQF = 0
+    sqf = np.exp(np.log(factors).mean("metric"))
+    sqf = sqf.where(factors.min("metric") > 0, 0.0)
+    sqf.name = "SQF"
+    return sqf
+
+
 # ---------- convenience aggregator ----------
 def compute_scores(
     pred: xr.Dataset,
@@ -497,16 +532,34 @@ def compute_scores(
 ) -> xr.Dataset:
     """
     Bundle the scores you currently use into a single xarray Dataset.
-    DU and CPO are left uncomputed on purpose (definition pending).
     """
+    eta = score_eta(
+        pred,
+        column_dead_time=column_dead_time,
+        width_penalty_coeff=width_penalty_coeff,
+    )
+    Sbar = score_Sbar(pred)
+    We = score_We(pred, column_dead_time=column_dead_time)
+    DUr = score_DU(pred)
+    CPO = score_CPO(pred)
+    Rs_crit = score_critical_resolution(pred)
+
+    factors = xr.concat([eta, Sbar, We, DUr, CPO], dim="metric")
+    if bool((factors < 0).any()):
+        raise ValueError("SQF is undefined for negative score components.")
+    SQF = np.exp(np.log(factors).mean("metric"))
+    SQF = SQF.where(factors.min("metric") > 0, 0.0)
+    SQF.name = "SQF"
+
     return xr.Dataset(
         data_vars=dict(
-            eta=score_eta(pred, column_dead_time=column_dead_time, width_penalty_coeff=width_penalty_coeff),
-            Sbar=score_Sbar(pred),
-            We=score_We(pred, column_dead_time=column_dead_time),
-            Rs_crit=score_critical_resolution(pred),
-            DUr=score_DU(pred),
-            CPO=score_CPO(pred),
+            eta=eta,
+            Sbar=Sbar,
+            We=We,
+            DUr=DUr,
+            CPO=CPO,
+            SQF=SQF,
+            Rs_crit=Rs_crit,
         ),
         coords=pred.coords,
     )
