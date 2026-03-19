@@ -722,7 +722,7 @@ def plot_score_surface(
 
     plt.figure(figsize=(3.25, 2.5))
     if use_pcolormesh:
-        plt.pcolormesh(tG, T, Z, shading="nearest")
+        plt.pcolormesh(tG, T, Z, shading="nearest", cmap="nipy_spectral")
     else:
         plt.imshow(
             Z,
