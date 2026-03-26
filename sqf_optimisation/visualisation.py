@@ -1,47 +1,114 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 
 # --- VISUALISE: score surfaces from scores_grid (robust to dim order) ---
-
-def plot_score_surface(
+def plot_subscore_surfaces(
     scores,
-    name: str,
     *,
     T_dim: str = "T",
     tG_dim: str = "tG",
     use_pcolormesh: bool = True,
 ):
-    if name not in scores:
-        raise KeyError(f"{name!r} not in scores dataset. Available: {list(scores.data_vars)}")
+    fig, axes = plt.subplots(2, 3, figsize=(20, 11))
+    fig.subplots_adjust(wspace=0.6, hspace=0.35)
+    axes[1][2].set_visible(False)
 
-    da = scores[name]
+    # custom subplot positions
+    axes[1][0].set_position([0.22, 0.125, 0.20, 0.343])
+    axes[1][1].set_position([0.57, 0.125, 0.20, 0.343])
 
-    # Allow either (T, tG) or (tG, T); transpose if needed.
+    fig.suptitle("Sub-Score Surfaces", fontsize=16)
+
+    i = 0
+    for name in list(scores.data_vars):
+        if name not in scores:
+            raise KeyError(f"{name!r} not in scores dataset. Available: {list(scores.data_vars)}")
+        if name in {"SQF", "Rs_crit"}:
+            continue
+
+        ax = axes[i // 3, i % 3]
+        da = scores[name]
+
+        if set(da.dims) != {T_dim, tG_dim}:
+            raise ValueError(f"{name} must have dims containing {{{T_dim},{tG_dim}}}, got {da.dims}")
+
+        da = da.transpose(T_dim, tG_dim)
+
+        T = scores.coords[T_dim].values
+        tG = scores.coords[tG_dim].values
+        Z = da.values
+
+        if use_pcolormesh:
+            mappable = ax.pcolormesh(tG, T, Z, shading="nearest", cmap="viridis")
+        else:
+            mappable = ax.imshow(
+                Z,
+                aspect="equal",
+                origin="lower",
+                extent=(float(tG.min()), float(tG.max()), float(T.min()), float(T.max())),
+                cmap="cividis",
+            )
+
+        # create a colorbar axes manually, relative to this subplot
+        cax = inset_axes(
+            ax,
+            width="4%",     # colorbar width
+            height="100%",  # full subplot height
+            loc="lower left",
+            bbox_to_anchor=(1.02, 0.0, 1, 1),
+            bbox_transform=ax.transAxes,
+            borderpad=0,
+        )
+        cbar = fig.colorbar(mappable, cax=cax, format="%.2f")
+        cbar.update_ticks()
+
+        ax.set_xlabel("$t_G \\ [min]$")
+        ax.set_ylabel("$T \\ [K]$")
+        ax.set_title(name)
+        i += 1
+
+    return fig
+
+def plot_sqf_surface(
+    scores,
+    *,
+    T_dim: str = "T",
+    tG_dim: str = "tG",
+    use_pcolormesh: bool = True,
+):
+
+    if "SQF" not in scores:
+        raise KeyError(f"\'SQF\' not in scores dataset. Available: {list(scores.data_vars)}")
+
+    da = scores["SQF"]
+
     if set(da.dims) != {T_dim, tG_dim}:
-        raise ValueError(f"{name} must have dims containing {{{T_dim},{tG_dim}}}, got {da.dims}")
+        raise ValueError(f"\'SQF\' must have dims containing {{{T_dim},{tG_dim}}}, got {da.dims}")
 
     da = da.transpose(T_dim, tG_dim)
 
     T = scores.coords[T_dim].values
     tG = scores.coords[tG_dim].values
-    Z = da.values  # (len(T), len(tG))
+    Z = da.values
 
-    fig = plt.figure(figsize=(3.25, 2.5))
+    fig = plt.figure(figsize=(10, 8))
     if use_pcolormesh:
-        plt.pcolormesh(tG, T, Z, shading="nearest", cmap="nipy_spectral")
+        mappable = plt.pcolormesh(tG, T, Z, shading="nearest", cmap="nipy_spectral", vmin=0.0, vmax=1.0)
     else:
-        plt.imshow(
+        mappable = plt.imshow(
             Z,
             aspect="equal",
             origin="lower",
             extent=(float(tG.min()), float(tG.max()), float(T.min()), float(T.max())),
+            cmap="cividis",
         )
+    plt.colorbar(mappable, format="%.2f")
 
-    plt.xlabel(tG_dim)
-    plt.ylabel(T_dim)
-    plt.title(name)
-    plt.colorbar()
-    plt.tight_layout()
+    plt.xlabel("$t_G \\ [min]$")
+    plt.ylabel("$T \\ [K]$")
+    plt.title("SQF Surface")
+
     return fig
 
 # --- Optimum-point synthetic chromatogram (transcribed to the xarray single-point test) ---

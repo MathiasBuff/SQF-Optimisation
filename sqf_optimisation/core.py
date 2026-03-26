@@ -1,8 +1,11 @@
 from dataclasses import dataclass
-from typing import Tuple
+from typing import Hashable, Tuple
 import numpy as np
 import pandas as pd
 import xarray as xr
+
+from .scores import compute_scores
+
 
 @dataclass(frozen=True)
 class MethodConfig:
@@ -274,3 +277,38 @@ def predictions_to_xr(
         },
     )
 
+def run_grid_analysis(config: MethodConfig, parameters: pd.DataFrame) -> tuple[xr.Dataset, xr.Dataset]:
+
+    # --- build predictions on the full grid ---
+    T_vals = np.linspace(*config.T_levels, config.n_T)
+    tG_vals = np.linspace(*config.tG_levels, config.n_tG)
+
+    pred_grid = predict_grid_from_params(
+        parameters,
+        T_vals=T_vals,
+        tG_vals=tG_vals,
+        t0_total=float(config.t0_total_min),
+    )
+
+    # --- compute scores ---
+    scores_grid = compute_scores(
+        pred_grid,
+        column_dead_time=float(config.t0_col_min),
+        width_penalty_coeff=10.0,
+    )
+    return (pred_grid, scores_grid)
+
+def find_optimum(scores_grid: xr.Dataset, score_name: Hashable = "SQF"):
+
+    # ---- Select optimum point ----
+    sqf = scores_grid[score_name].transpose("T", "tG")
+
+    # index of the global maximum in the 2D array
+    i_T, i_tG = np.unravel_index(np.nanargmax(sqf.values), sqf.shape)
+
+    # corresponding coordinate values
+    T_max = float(sqf.coords["T"].values[i_T])
+    tG_max = float(sqf.coords["tG"].values[i_tG])
+    sqf_max = float(sqf.values[i_T, i_tG])
+
+    return T_max, tG_max, sqf_max, i_T, i_tG

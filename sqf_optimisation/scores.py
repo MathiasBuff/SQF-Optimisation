@@ -365,5 +365,5 @@ def compute_scores(
             SQF=SQF,
             Rs_crit=Rs_crit,
         ),
-        coords=pred.coords,
+        coords=pred.drop_vars("analyte").coords,  # keep method dims, drop analyte dim
     )
