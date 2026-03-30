@@ -131,10 +131,8 @@ def score_DU(
         ok = Delta > 0
         CV[ok] = sigma[ok] / Delta[ok]
 
-        # CVΔ_max from the document; simplifies to sqrt(N-1) with corrected σΔ. :contentReference[oaicite:1]{index=1}
-        CV_max = ((N - 1) / np.sqrt(N - 2)) * np.sqrt(
-            (1 - 1 / (N - 1)) ** 2 + (N - 2) * (1 / (N - 1)) ** 2
-        )
+        # CVΔ_max simplifies to sqrt(N-1).
+        CV_max = np.sqrt(N - 1)
 
         du_vals = np.zeros((P,), dtype=float)
         # For non-degenerate windows: DU = 1 - CV/CVmax, clipped to [0,1]
