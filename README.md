@@ -1,6 +1,6 @@
 # SQF Score Optimisation
 
-[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/MathiasBuff/SQF-Optimisation/HEAD?urlpath=%2Fdoc%2Ftree%2FNotebook.ipynb)
+## Try it here: [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/MathiasBuff/SQF-Optimisation/HEAD?urlpath=%2Fdoc%2Ftree%2FNotebook.ipynb)
 
 A research project on score-based chromatographic method optimisation from limited scouting data.
 
@@ -42,7 +42,7 @@ SQF-Optimisation/
 
 ## Access
 
-The notebook can be launched directly through Binder using the badge above.
+The notebook can be launched directly through Binder: [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/MathiasBuff/SQF-Optimisation/HEAD?urlpath=%2Fdoc%2Ftree%2FNotebook.ipynb)
 
 Alternatively, the repository can be cloned and run locally in a standard Python/Jupyter environment.
 
