@@ -1,3 +1,5 @@
+from typing import Literal
+
 import numpy as np
 import xarray as xr
 
@@ -71,6 +73,7 @@ def score_DU(
     *,
     analyte_dim: str = "analyte",
     tR_name: str = "tR",
+    model: Literal["linear", "inverse"] = "inverse",
 ) -> xr.DataArray:
     """
     Gap-uniformity DU score using the "Alternate proposal" definition:
@@ -135,9 +138,18 @@ def score_DU(
         CV_max = np.sqrt(N - 1)
 
         du_vals = np.zeros((P,), dtype=float)
-        # For non-degenerate windows: DU = 1 - CV/CVmax, clipped to [0,1]
-        du_vals[ok] = 1.0 - (CV[ok] / CV_max)
-        du_vals = np.clip(du_vals, 0.0, 1.0)
+        
+        if model == "linear":
+            # For non-degenerate windows: DU = 1 - CV/CVmax, clipped to [0,1]
+            du_vals[ok] = 1.0 - (CV[ok] / CV_max)
+            du_vals = np.clip(du_vals, 0.0, 1.0)
+        elif model == "inverse":
+            # Inverse relationship proposal: DU = 1 / (1 + CV), clipped to [0,1]
+            # Better sensitivity near uniformity, but low sensitivity for highly non-uniform cases.
+            du_vals[ok] = 1.0 / (1 + CV[ok])
+            du_vals = np.clip(du_vals, 0.0, 1.0)
+        else:
+            raise ValueError(f"Invalid model: {model}. Must be 'linear' or 'inverse'.")
 
         # If Delta==0 (all coelute), du_vals stays 0 by design.
 
@@ -230,7 +242,7 @@ def score_CPO(
         tail_rank = np.clip(tail_ratio, 0.0, 1.0)
 
         # Pair-wise CPO (N-1, P)
-        pair_cpo = np.clip(Rs / float(Rs_clip_divisor), 0.0, 1.0) * tail_rank
+        pair_cpo = np.clip((Rs / float(Rs_clip_divisor)) * tail_rank, 0.0, 1.0)
 
         # Requested aggregation: minimum over adjacent pairs
         cpo_vals = np.min(pair_cpo, axis=0)
@@ -298,6 +310,7 @@ def score_SQF(
     *,
     column_dead_time: float,
     width_penalty_coeff: float = 10.0,
+    DU_model: Literal["linear", "inverse"] = "inverse",
 ) -> xr.DataArray:
     """
     Separation Quality Factor (SQF), defined as the geometric mean of:
@@ -310,7 +323,7 @@ def score_SQF(
     )
     Sbar = score_Sbar(pred)
     We   = score_We(pred, column_dead_time=column_dead_time)
-    DUr  = score_DU(pred)
+    DUr  = score_DU(pred, model=DU_model)
     CPO  = score_CPO(pred)
 
     factors = xr.concat([eta, Sbar, We, DUr, CPO], dim="metric")

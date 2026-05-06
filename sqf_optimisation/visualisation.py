@@ -140,7 +140,7 @@ def plot_synthetic_chromatogram(grid, T_index, tG_index, measurements):
     xx = x[None, :]                # (1,X)
     wl = w_left[:, None]           # (N,1)
     wr = w_right[:, None]          # (N,1)
-    aa = areas[:, None]             # (N,1)
+    aa = areas[:, None]/1e6             # (N,1)
 
     w_piece = np.where(xx < rt, wl, wr)  # (N,X)
     y = aa * np.exp(-4.0 * ((rt - xx) ** 2) / (w_piece ** 2))  # (N,X)
@@ -161,7 +161,7 @@ def plot_synthetic_chromatogram(grid, T_index, tG_index, measurements):
     # Simple total chromatogram plot (replace the above if too cluttered)
     # fig = plt.figure(figsize=(15, 6))
     # plt.plot(x, y_total)
-    # plt.title(f"Predicted chromatogram at tG={tG_test:.2f} min, T={T_test:.2f} K")
+    # # plt.title(f"Predicted chromatogram at tG={tG_val:.2f} min, T={T_val:.2f} K")
     # plt.xlabel("Time [min]")
     # plt.ylabel("Signal (a.u.)")
     # plt.tight_layout()
