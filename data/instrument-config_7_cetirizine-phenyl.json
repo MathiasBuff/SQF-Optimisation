@@ -3,9 +3,9 @@
     "T2" : 323.0,
     "tG1" : 5.0,
     "tG2" : 15.0,
-    "flow_mL_min" : 0.2,
+    "flow_mL_min" : 0.3,
     "delay_volume_mL" : 0.1,
     "t0_col_min" : 0.88,
-    "n_T": 500,
-    "n_tG": 500
+    "n_T": 1000,
+    "n_tG": 1000
 }

@@ -242,7 +242,8 @@ def score_CPO(
         tail_rank = np.clip(tail_ratio, 0.0, 1.0)
 
         # Pair-wise CPO (N-1, P)
-        pair_cpo = np.clip((Rs / float(Rs_clip_divisor)) * tail_rank, 0.0, 1.0)
+        pair_cpo = np.clip((Rs / float(Rs_clip_divisor)), 0.0, 1.0)
+        pair_cpo = np.where(pair_cpo < 1.0, pair_cpo * tail_rank, 1.0)  # if pair non-critical => cpo=1, else penalize by tailing
 
         # Requested aggregation: minimum over adjacent pairs
         cpo_vals = np.min(pair_cpo, axis=0)
@@ -305,37 +306,37 @@ def score_critical_resolution(
     return crit
 
 
-def score_SQF(
-    pred: xr.Dataset,
-    *,
-    column_dead_time: float,
-    width_penalty_coeff: float = 10.0,
-    DU_model: Literal["linear", "inverse"] = "inverse",
-) -> xr.DataArray:
-    """
-    Separation Quality Factor (SQF), defined as the geometric mean of:
-        {eta, Sbar, We, DUr, CPO}
-    """
-    eta  = score_eta(
-        pred,
-        column_dead_time=column_dead_time,
-        width_penalty_coeff=width_penalty_coeff,
-    )
-    Sbar = score_Sbar(pred)
-    We   = score_We(pred, column_dead_time=column_dead_time)
-    DUr  = score_DU(pred, model=DU_model)
-    CPO  = score_CPO(pred)
+# def score_SQF(
+#     pred: xr.Dataset,
+#     *,
+#     column_dead_time: float,
+#     width_penalty_coeff: float = 10.0,
+#     DU_model: Literal["linear", "inverse"] = "inverse",
+# ) -> xr.DataArray:
+#     """
+#     Separation Quality Factor (SQF), defined as the geometric mean of:
+#         {eta, Sbar, We, DUr, CPO}
+#     """
+#     eta  = score_eta(
+#         pred,
+#         column_dead_time=column_dead_time,
+#         width_penalty_coeff=width_penalty_coeff,
+#     )
+#     Sbar = score_Sbar(pred)
+#     We   = score_We(pred, column_dead_time=column_dead_time)
+#     DU  = score_DU(pred, model=DU_model)
+#     CPO  = score_CPO(pred)
 
-    factors = xr.concat([eta, Sbar, We, DUr, CPO], dim="metric")
+#     factors = xr.concat([eta, Sbar, We, DU, CPO], dim="metric")
 
-    if bool((factors < 0).any()):
-        raise ValueError("SQF is undefined for negative score components.")
+#     if bool((factors < 0).any()):
+#         raise ValueError("SQF is undefined for negative score components.")
 
-    # geometric mean; zeros are allowed and give SQF = 0
-    sqf = np.exp(np.log(factors).mean("metric"))
-    sqf = sqf.where(factors.min("metric") > 0, 0.0)
-    sqf.name = "SQF"
-    return sqf
+#     # geometric mean; zeros are allowed and give SQF = 0
+#     sqf = np.exp(np.log(factors).mean("metric"))
+#     sqf = sqf.where(factors.min("metric") > 0, 0.0)
+#     sqf.name = "SQF"
+#     return sqf
 
 
 # ---------- convenience aggregator ----------
@@ -344,6 +345,7 @@ def compute_scores(
     *,
     column_dead_time: float,
     width_penalty_coeff: float = 10.0,
+    DU_model: Literal["linear", "inverse"] = "inverse",
 ) -> xr.Dataset:
     """
     Bundle the scores you currently use into a single xarray Dataset.
@@ -355,11 +357,11 @@ def compute_scores(
     )
     Sbar = score_Sbar(pred)
     We = score_We(pred, column_dead_time=column_dead_time)
-    DUr = score_DU(pred)
+    DU = score_DU(pred, model=DU_model)
     CPO = score_CPO(pred)
     Rs_crit = score_critical_resolution(pred)
 
-    factors = xr.concat([eta, Sbar, We, DUr, CPO], dim="metric")
+    factors = xr.concat([eta, Sbar, We, DU, CPO], dim="metric")
     if bool((factors < 0).any()):
         raise ValueError("SQF is undefined for negative score components.")
     SQF = np.exp(np.log(factors).mean("metric"))
@@ -371,7 +373,7 @@ def compute_scores(
             eta=eta,
             Sbar=Sbar,
             We=We,
-            DUr=DUr,
+            DU=DU,
             CPO=CPO,
             SQF=SQF,
             Rs_crit=Rs_crit,

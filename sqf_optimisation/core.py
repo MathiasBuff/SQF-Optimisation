@@ -295,6 +295,7 @@ def run_grid_analysis(config: MethodConfig, parameters: pd.DataFrame) -> tuple[x
         pred_grid,
         column_dead_time=float(config.t0_col_min),
         width_penalty_coeff=10.0,
+        DU_model="inverse",
     )
     return (pred_grid, scores_grid)
 

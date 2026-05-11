@@ -63,9 +63,17 @@ def plot_subscore_surfaces(
         cbar = fig.colorbar(mappable, cax=cax, format="%.2f")
         cbar.update_ticks()
 
-        ax.set_xlabel("$t_G \\ [min]$")
-        ax.set_ylabel("$T \\ [K]$")
-        ax.set_title(name)
+        plot_title = {
+            "eta": "Normalised Efficiency (η)",
+            "Sbar": "Average Peak Asymmetry ($\\bar{S}$)",
+            "We": "Elution Window Utilisation (We)",
+            "DU": "Distribution Uniformity (DU)",
+            "CPO": "Critical Pair Ordering (CPO)",
+        }
+
+        ax.set_xlabel("Gradient time [min]")
+        ax.set_ylabel("Temperature [K]")
+        ax.set_title(plot_title[name])
         i += 1
 
     return fig
@@ -92,9 +100,9 @@ def plot_sqf_surface(
     tG = scores.coords[tG_dim].values
     Z = da.values
 
-    fig = plt.figure(figsize=(10, 8))
+    fig = plt.figure(figsize=(5, 4))
     if use_pcolormesh:
-        mappable = plt.pcolormesh(tG, T, Z, shading="nearest", cmap="nipy_spectral", vmin=0.0, vmax=1.0)
+        mappable = plt.pcolormesh(tG, T, Z, shading="nearest", cmap="viridis")
     else:
         mappable = plt.imshow(
             Z,
@@ -105,8 +113,8 @@ def plot_sqf_surface(
         )
     plt.colorbar(mappable, format="%.2f")
 
-    plt.xlabel("$t_G \\ [min]$")
-    plt.ylabel("$T \\ [K]$")
+    plt.xlabel("Gradient time [min]")
+    plt.ylabel("Temperature [K]")
     plt.title("SQF Surface")
 
     return fig
@@ -140,6 +148,7 @@ def plot_synthetic_chromatogram(grid, T_index, tG_index, measurements):
     xx = x[None, :]                # (1,X)
     wl = w_left[:, None]           # (N,1)
     wr = w_right[:, None]          # (N,1)
+    # aa = areas[:, None]             # (N,1)
     aa = areas[:, None]/1e6             # (N,1)
 
     w_piece = np.where(xx < rt, wl, wr)  # (N,X)
@@ -148,14 +157,14 @@ def plot_synthetic_chromatogram(grid, T_index, tG_index, measurements):
 
 
     # Overlay individual peaks (comment out if too cluttered)
-    fig = plt.figure(figsize=(15, 6))
+    fig = plt.figure(figsize=(10, 4))
     plt.plot(x, y_total, linewidth=2.0, label="Total", color="black")
     for i, k in enumerate(analytes):
         plt.plot(x, y[i], label=k, alpha=0.6)
-    plt.title(f"Predicted chromatogram at tG={tG_val:.2f} min, T={T_val:.2f} K")
+    # plt.title(f"Predicted chromatogram at tG={tG_val:.2f} min, T={T_val:.2f} K")
     plt.xlabel("Time [min]")
     plt.ylabel("Signal (a.u.)")
-    plt.legend(ncol=3, fontsize=8)
+    plt.legend(ncol=2, fontsize=6)
     plt.tight_layout()
 
     # Simple total chromatogram plot (replace the above if too cluttered)
