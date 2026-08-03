@@ -59,9 +59,9 @@ def fit_models(config: MethodConfig, measurements: pd.DataFrame) -> pd.DataFrame
         Method/design settings (T1, T2, tG1, tG2, dead times, etc.).
     measurements : pd.DataFrame
         DataFrame indexed by analyte, with at least these columns:
-        - tR_T1_G1, tR_T1_G2, tR_T2_G1, tR_T2_G2
-        - w_T1_G1,  w_T1_G2,  w_T2_G1,  w_T2_G2
-        - A_T1_G1,  A_T1_G2,  A_T2_G1,  A_T2_G2
+        - tR_T1_G1, tR_T1_G2, tR_T2_G2
+        - w_T1_G1,  w_T1_G2,  w_T2_G2
+        - A_T1_G1,  A_T1_G2,  A_T2_G2
 
     Returns
     -------
@@ -71,9 +71,9 @@ def fit_models(config: MethodConfig, measurements: pd.DataFrame) -> pd.DataFrame
     """
 
     required_cols = [
-        "tR_T1_G1", "tR_T1_G2", "tR_T2_G1", "tR_T2_G2",
-        "w_T1_G1",  "w_T1_G2",  "w_T2_G1",  "w_T2_G2",
-        "A_T1_G1",  "A_T1_G2",  "A_T2_G1",  "A_T2_G2",
+        "tR_T1_G1", "tR_T1_G2", "tR_T2_G2",
+        "w_T1_G1",  "w_T1_G2",  "w_T2_G2",
+        "A_T1_G1",  "A_T1_G2",  "A_T2_G2",
     ]
 
     missing = [col for col in required_cols if col not in measurements.columns]
@@ -97,33 +97,33 @@ def fit_models(config: MethodConfig, measurements: pd.DataFrame) -> pd.DataFrame
 
     for analyte, row in measurements.iterrows():
         # Retention times
-        tr11, tr12, tr21, tr22 = row[
-            ["tR_T1_G1", "tR_T1_G2", "tR_T2_G1", "tR_T2_G2"]
+        tr11, tr12, tr22 = row[
+            ["tR_T1_G1", "tR_T1_G2", "tR_T2_G2"]
         ].to_numpy(dtype=float)
 
         # Peak widths
-        w11, w12, w21, w22 = row[
-            ["w_T1_G1", "w_T1_G2", "w_T2_G1", "w_T2_G2"]
+        w11, w12, w22 = row[
+            ["w_T1_G1", "w_T1_G2", "w_T2_G2"]
         ].to_numpy(dtype=float)
 
         # Peak asymmetry / tailing
-        A11, A12, A21, A22 = row[
-            ["A_T1_G1", "A_T1_G2", "A_T2_G1", "A_T2_G2"]
+        A11, A12, A22 = row[
+            ["A_T1_G1", "A_T1_G2", "A_T2_G2"]
         ].to_numpy(dtype=float)
 
         # TODO: move validation to i/o, assume core gets clean data
         # Sanity checks
-        tr_adj = np.array([tr11, tr12, tr21, tr22]) - t0_total
+        tr_adj = np.array([tr11, tr12, tr22]) - t0_total
         if np.any(tr_adj <= 0):
             raise ValueError(
                 f"{analyte}: all retention times must be > total dead time "
                 f"({t0_total:.4f} min)."
             )
 
-        if np.any(np.array([w11, w12, w21, w22]) <= 0):
+        if np.any(np.array([w11, w12, w22]) <= 0):
             raise ValueError(f"{analyte}: all peak widths must be strictly positive.")
 
-        if np.any(np.array([A11, A12, A21, A22]) <= 0):
+        if np.any(np.array([A11, A12, A22]) <= 0):
             raise ValueError(f"{analyte}: all asymmetry values must be strictly positive.")
 
         # Retention-time model
@@ -196,21 +196,12 @@ def predict_grid_from_params(
     tR = float(t0_total) + tR_adj
     w  = np.exp(b0 + b1 * invT[None, :, :] + b2 * invtG[None, :, :])
     A  = np.exp(c0 + c1 * invT[None, :, :] + c2 * invtG[None, :, :])
-
-    # pred_tR = {analytes[i]: tR[i, :, :] for i in range(len(analytes))}
-    # pred_w  = {analytes[i]: w[i, :, :]  for i in range(len(analytes))}
-    # pred_A  = {analytes[i]: A[i, :, :]  for i in range(len(analytes))}
     
     # """
     # Convert dict-of-(M,L) predictions into an xarray Dataset with dims (analyte, T, tG).
     # """
     if analytes is None:
         analytes = list(tR.keys())
-
-    # # stack into (N, M, L)
-    # tR = np.stack([pred_tR[a] for a in analytes], axis=0)
-    # w  = np.stack([pred_w[a]     for a in analytes], axis=0)
-    # A  = np.stack([pred_A[a]   for a in analytes], axis=0)
 
     if tR.shape[1:] != (len(T_vals), len(tG_vals)):
         raise ValueError(
