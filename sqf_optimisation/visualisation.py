@@ -105,7 +105,7 @@ def plot_sqf_surface(
 
     fig = plt.figure(figsize=(10, 8))
     if use_pcolormesh:
-        mappable = plt.pcolormesh(tG, T, Z, shading="nearest", cmap="turbo", vmin = -0.5, vmax = 0.5)
+        mappable = plt.pcolormesh(tG, T, Z, shading="nearest", cmap="turbo")
     else:
         mappable = plt.imshow(
             Z,
