@@ -105,14 +105,14 @@ def plot_sqf_surface(
 
     fig = plt.figure(figsize=(10, 8))
     if use_pcolormesh:
-        mappable = plt.pcolormesh(tG, T, Z, shading="nearest", cmap="RdBu_r", vmin = -0.5, vmax = 0.5)
+        mappable = plt.pcolormesh(tG, T, Z, shading="nearest", cmap="turbo", vmin = -0.5, vmax = 0.5)
     else:
         mappable = plt.imshow(
             Z,
             aspect="equal",
             origin="lower",
             extent=(float(tG.min()), float(tG.max()), float(T.min()), float(T.max())),
-            cmap="RdBu_r",
+            cmap="turbo",
         )
     plt.colorbar(mappable, format="%.2f")
 

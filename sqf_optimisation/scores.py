@@ -306,39 +306,6 @@ def score_critical_resolution(
     return crit
 
 
-# def score_SQF(
-#     pred: xr.Dataset,
-#     *,
-#     column_dead_time: float,
-#     width_penalty_coeff: float = 10.0,
-#     DU_model: Literal["linear", "inverse"] = "inverse",
-# ) -> xr.DataArray:
-#     """
-#     Separation Quality Factor (SQF), defined as the geometric mean of:
-#         {eta, Sbar, We, DUr, CPO}
-#     """
-#     eta  = score_eta(
-#         pred,
-#         column_dead_time=column_dead_time,
-#         width_penalty_coeff=width_penalty_coeff,
-#     )
-#     Sbar = score_Sbar(pred)
-#     We   = score_We(pred, column_dead_time=column_dead_time)
-#     DU  = score_DU(pred, model=DU_model)
-#     CPO  = score_CPO(pred)
-
-#     factors = xr.concat([eta, Sbar, We, DU, CPO], dim="metric")
-
-#     if bool((factors < 0).any()):
-#         raise ValueError("SQF is undefined for negative score components.")
-
-#     # geometric mean; zeros are allowed and give SQF = 0
-#     sqf = np.exp(np.log(factors).mean("metric"))
-#     sqf = sqf.where(factors.min("metric") > 0, 0.0)
-#     sqf.name = "SQF"
-#     return sqf
-
-
 # ---------- convenience aggregator ----------
 def compute_scores(
     pred: xr.Dataset,
