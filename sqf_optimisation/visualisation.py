@@ -10,6 +10,8 @@ def plot_subscore_surfaces(
     tG_dim: str = "tG",
     use_pcolormesh: bool = True,
 ):
+    plt.rcParams.update({'font.size': 14})
+
     fig, axes = plt.subplots(2, 3, figsize=(20, 11))
     fig.subplots_adjust(wspace=0.6, hspace=0.35)
     axes[1][2].set_visible(False)
@@ -18,7 +20,7 @@ def plot_subscore_surfaces(
     axes[1][0].set_position([0.22, 0.125, 0.20, 0.343])
     axes[1][1].set_position([0.57, 0.125, 0.20, 0.343])
 
-    fig.suptitle("Sub-Score Surfaces", fontsize=16)
+    fig.suptitle("Sub-Score Surfaces", fontsize=24)
 
     i = 0
     for name in list(scores.data_vars):
@@ -35,19 +37,19 @@ def plot_subscore_surfaces(
 
         da = da.transpose(T_dim, tG_dim)
 
-        T = scores.coords[T_dim].values
+        T = scores.coords[T_dim].values -273.15  # convert to Celsius
         tG = scores.coords[tG_dim].values
         Z = da.values
 
         if use_pcolormesh:
-            mappable = ax.pcolormesh(tG, T, Z, shading="nearest", cmap="viridis")
+            mappable = ax.pcolormesh(tG, T, Z, shading="nearest", cmap="turbo")
         else:
             mappable = ax.imshow(
                 Z,
                 aspect="equal",
                 origin="lower",
                 extent=(float(tG.min()), float(tG.max()), float(T.min()), float(T.max())),
-                cmap="cividis",
+                cmap="turbo",
             )
 
         # create a colorbar axes manually, relative to this subplot
@@ -72,7 +74,7 @@ def plot_subscore_surfaces(
         }
 
         ax.set_xlabel("Gradient time [min]")
-        ax.set_ylabel("Temperature [K]")
+        ax.set_ylabel("Temperature [°C]")
         ax.set_title(plot_title[name])
         i += 1
 
@@ -85,6 +87,7 @@ def plot_sqf_surface(
     tG_dim: str = "tG",
     use_pcolormesh: bool = True,
 ):
+    plt.rcParams.update({'font.size': 22})
 
     if "SQF" not in scores:
         raise KeyError(f"\'SQF\' not in scores dataset. Available: {list(scores.data_vars)}")
@@ -96,26 +99,26 @@ def plot_sqf_surface(
 
     da = da.transpose(T_dim, tG_dim)
 
-    T = scores.coords[T_dim].values
+    T = scores.coords[T_dim].values - 273.15  # convert to Celsius
     tG = scores.coords[tG_dim].values
     Z = da.values
 
-    fig = plt.figure(figsize=(5, 4))
+    fig = plt.figure(figsize=(10, 8))
     if use_pcolormesh:
-        mappable = plt.pcolormesh(tG, T, Z, shading="nearest", cmap="viridis")
+        mappable = plt.pcolormesh(tG, T, Z, shading="nearest", cmap="RdBu_r", vmin = -0.5, vmax = 0.5)
     else:
         mappable = plt.imshow(
             Z,
             aspect="equal",
             origin="lower",
             extent=(float(tG.min()), float(tG.max()), float(T.min()), float(T.max())),
-            cmap="cividis",
+            cmap="RdBu_r",
         )
     plt.colorbar(mappable, format="%.2f")
 
     plt.xlabel("Gradient time [min]")
-    plt.ylabel("Temperature [K]")
-    plt.title("SQF Surface")
+    plt.ylabel("Temperature [°C]")
+    plt.title("SQF Surface", fontsize=28)
 
     return fig
 
