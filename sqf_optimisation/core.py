@@ -92,6 +92,7 @@ def fit_models(config: MethodConfig, measurements: pd.DataFrame) -> pd.DataFrame
 
     d_inv_T = (1.0 / T2) - (1.0 / T1)
     d_inv_tG = (1.0 / tG2) - (1.0 / tG1)
+    d_log_tG = np.log(tG2) - np.log(tG1)
 
     rows = []
 
@@ -128,13 +129,17 @@ def fit_models(config: MethodConfig, measurements: pd.DataFrame) -> pd.DataFrame
 
         # Retention-time model
         a1 = (np.log(tr22 - t0_total) - np.log(tr12 - t0_total)) / d_inv_T
-        a2 = (np.log(tr12 - t0_total) - np.log(tr11 - t0_total)) / d_inv_tG
-        a0 = np.log(tr11 - t0_total) - (a1 / T1) - (a2 / tG1)
+        # a2 = (np.log(tr12 - t0_total) - np.log(tr11 - t0_total)) / d_inv_tG
+        a2 = (np.log(tr12 - t0_total) - np.log(tr11 - t0_total)) / d_log_tG
+        # a0 = np.log(tr11 - t0_total) - (a1 / T1) - (a2 / tG1)
+        a0 = np.log(tr11 - t0_total) - (a1 / T1) - (a2 * np.log(tG1))
 
         # Peak-width model
         b1 = np.log(w22 / w12) / d_inv_T
-        b2 = np.log(w12 / w11) / d_inv_tG
-        b0 = np.log(w11) - (b1 / T1) - (b2 / tG1)
+        # b2 = np.log(w12 / w11) / d_inv_tG
+        b2 = np.log(w12 / w11) / d_log_tG
+        # b0 = np.log(w11) - (b1 / T1) - (b2 / tG1)
+        b0 = np.log(w11) - (b1 / T1) - (b2 * np.log(tG1))
 
         # Peak-asymmetry model
         c1 = np.log(A22 / A12) / d_inv_T
@@ -178,6 +183,7 @@ def predict_grid_from_params(
 
     invT = (1.0 / T_vals)[:, None]     # (M,1)
     invtG = (1.0 / tG_vals)[None, :]   # (1,L)
+    logtG = np.log(tG_vals)[None, :]   # (1,L)
 
     a0 = model_params["a0"].to_numpy(float)[:, None, None]
     a1 = model_params["a1"].to_numpy(float)[:, None, None]
@@ -192,10 +198,13 @@ def predict_grid_from_params(
     c2 = model_params["c2"].to_numpy(float)[:, None, None]
 
     # broadcast (N, M, L)
-    tR_adj = np.exp(a0 + a1 * invT[None, :, :] + a2 * invtG[None, :, :])
+    # tR_adj = np.exp(a0 + a1 * invT[None, :, :] + a2 * invtG[None, :, :])
+    tR_adj = np.exp(a0 + a1 * invT[None, :, :] + a2 * logtG[None, :, :])
     tR = float(t0_total) + tR_adj
-    w  = np.exp(b0 + b1 * invT[None, :, :] + b2 * invtG[None, :, :])
-    A  = np.exp(c0 + c1 * invT[None, :, :] + c2 * invtG[None, :, :])
+    # w  = np.exp(b0 + b1 * invT[None, :, :] + b2 * invtG[None, :, :])
+    w  = np.exp(b0 + b1 * invT[None, :, :] + b2 * logtG[None, :, :])
+    # A  = np.exp(c0 + c1 * invT[None, :, :] + c2 * invtG[None, :, :])
+    A  = np.exp(c0 + c1 * invT[None, :, :] + c2 * logtG[None, :, :])
     
     # """
     # Convert dict-of-(M,L) predictions into an xarray Dataset with dims (analyte, T, tG).

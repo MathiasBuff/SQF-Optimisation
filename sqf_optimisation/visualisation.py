@@ -9,6 +9,7 @@ def plot_subscore_surfaces(
     T_dim: str = "T",
     tG_dim: str = "tG",
     use_pcolormesh: bool = True,
+    cmap: str = "turbo",
 ):
     plt.rcParams.update({'font.size': 14})
 
@@ -41,15 +42,17 @@ def plot_subscore_surfaces(
         tG = scores.coords[tG_dim].values
         Z = da.values
 
+        # scale = np.max(np.abs(Z))
+
         if use_pcolormesh:
-            mappable = ax.pcolormesh(tG, T, Z, shading="nearest", cmap="turbo")
+            mappable = ax.pcolormesh(tG, T, Z, shading="nearest", cmap=cmap,)
         else:
             mappable = ax.imshow(
                 Z,
                 aspect="equal",
                 origin="lower",
                 extent=(float(tG.min()), float(tG.max()), float(T.min()), float(T.max())),
-                cmap="turbo",
+                cmap=cmap,
             )
 
         # create a colorbar axes manually, relative to this subplot
@@ -86,6 +89,7 @@ def plot_sqf_surface(
     T_dim: str = "T",
     tG_dim: str = "tG",
     use_pcolormesh: bool = True,
+    cmap: str = "turbo",
 ):
     plt.rcParams.update({'font.size': 22})
 
@@ -103,16 +107,18 @@ def plot_sqf_surface(
     tG = scores.coords[tG_dim].values
     Z = da.values
 
+    # scale = np.max(np.abs(Z))
+
     fig = plt.figure(figsize=(10, 8))
     if use_pcolormesh:
-        mappable = plt.pcolormesh(tG, T, Z, shading="nearest", cmap="turbo")
+        mappable = plt.pcolormesh(tG, T, Z, shading="nearest", cmap=cmap,)
     else:
         mappable = plt.imshow(
             Z,
             aspect="equal",
             origin="lower",
             extent=(float(tG.min()), float(tG.max()), float(T.min()), float(T.max())),
-            cmap="turbo",
+            cmap=cmap,
         )
     plt.colorbar(mappable, format="%.2f")
 
